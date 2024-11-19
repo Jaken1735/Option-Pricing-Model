@@ -1,1 +1,1 @@
-# Option-Pricing-Modell
+# Option-Pricing-Model
