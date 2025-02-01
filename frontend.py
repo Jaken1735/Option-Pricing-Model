@@ -1,6 +1,9 @@
 import streamlit as st
+import numpy as np
 from math import log, sqrt, exp
 from scipy.stats import norm
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Example Black-Scholes functions
 def black_scholes_call(S, K, T, r, sigma):
@@ -40,6 +43,23 @@ def binomial_put(S, K, T, r, sigma, steps=100):
         option_values = [exp(-r * dt) * (p * option_values[j + 1] + (1 - p) * option_values[j]) for j in range(i + 1)]
     return option_values[0]
 
+# Function to generate a heatmap data grid
+def generate_heatmap_data(model, option_type, S_range, sigma_range, K, T, r, steps=100):
+    prices = np.zeros((len(sigma_range), len(S_range)))
+    for i, sigma_val in enumerate(sigma_range):
+        for j, S_val in enumerate(S_range):
+            if model == "Black-Scholes":
+                if option_type == "Call":
+                    prices[i, j] = black_scholes_call(S_val, K, T, r, sigma_val)
+                else:
+                    prices[i, j] = black_scholes_put(S_val, K, T, r, sigma_val)
+            else:  # Binomial model
+                if option_type == "Call":
+                    prices[i, j] = binomial_call(S_val, K, T, r, sigma_val, steps)
+                else:
+                    prices[i, j] = binomial_put(S_val, K, T, r, sigma_val, steps)
+    return prices
+
 def main():
     st.title("Option Pricing Calculator")
     st.write("Select the pricing model, option type, and parameters from the sidebar.")
@@ -60,6 +80,8 @@ def main():
     # For the binomial model, allow the user to choose the number of steps
     if model == "Binomial":
         steps = st.sidebar.slider("Number of Steps", min_value=10, max_value=500, value=100, step=10)
+    else:
+        steps = 100  # default for consistency
 
     # Display current parameters
     st.subheader("Current Parameters")
@@ -85,10 +107,31 @@ def main():
                 price = binomial_call(S, K, T, r, sigma, steps)
             else:
                 price = binomial_put(S, K, T, r, sigma, steps)
-        
         st.success(f"Calculated {option_type} Option Price: {price:.2f}")
+
+    # Additional section: Display Heatmap for Option Price sensitivity
+    if st.sidebar.checkbox("Show Heatmap"):
+        st.subheader("Heatmap of Option Prices")
+        st.write("This heatmap shows how the option price changes as you vary the Underlying Price (S) and Volatility (σ).")
+
+        # Define ranges for S and sigma (you can adjust these ranges)
+        S_range = np.linspace(S * 0.8, S * 1.2, 50)       # 80% to 120% of current S
+        sigma_range = np.linspace(sigma * 0.5, sigma * 1.5, 50)  # 50% to 150% of current sigma
+
+        # Generate the grid of prices
+        prices = generate_heatmap_data(model, option_type, S_range, sigma_range, K, T, r, steps)
+
+        # Plot the heatmap
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.heatmap(prices, xticklabels=np.round(S_range, 1), yticklabels=np.round(sigma_range, 2),
+                    ax=ax, cmap="viridis")
+        ax.set_xlabel("Underlying Price (S)")
+        ax.set_ylabel("Volatility (σ)")
+        ax.set_title(f"{option_type} Option Price Heatmap ({model} Model)")
+        st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
+
 
 
